@@ -48,11 +48,15 @@ def get_engine() -> Engine:
     host = cfg["host"]
     port = cfg["port"]
     database = cfg["database"]
+    sslmode = cfg.get("sslmode", "")
+
     if password:
         url = f"postgresql+psycopg2://{user}:{quote_plus(password)}@{host}:{port}/{database}"
     else:
-        # Works when local PostgreSQL is configured with trust authentication.
         url = f"postgresql+psycopg2://{user}@{host}:{port}/{database}"
+        
+    if sslmode:
+        url += f"?sslmode={sslmode}"
     return create_engine(url, pool_pre_ping=True)
 
 @st.cache_data(ttl=60, show_spinner=False)

@@ -49,15 +49,13 @@ def get_engine() -> Engine:
     port = cfg["port"]
     database = cfg["database"]
     sslmode = cfg.get("sslmode", "")
-
     if password:
         url = f"postgresql+psycopg2://{user}:{quote_plus(password)}@{host}:{port}/{database}"
     else:
         url = f"postgresql+psycopg2://{user}@{host}:{port}/{database}"
-        
     if sslmode:
         url += f"?sslmode={sslmode}"
-    return create_engine(url, pool_pre_ping=True)
+        return create_engine(url, pool_pre_ping=True)
 
 @st.cache_data(ttl=60, show_spinner=False)
 def run_query(sql: str, params: Dict[str, Any] | None = None) -> pd.DataFrame:
@@ -294,6 +292,42 @@ def display_table(df: pd.DataFrame):
 st.title("🏬 Costco-Inspired Sales & Inventory Insights System")
 st.caption("Pre-AI Streamlit dashboard: SQL-driven metrics, tables, and visualizations.")
 
+
+# Visual framing: make the AI assistant feel like the central copilot,
+# while leaving actual AI/API logic for teammate integration.
+st.markdown("""
+<style>
+.ai-callout {
+    border: 1px solid #d7e8ff;
+    background: linear-gradient(135deg, #f4f9ff 0%, #ffffff 100%);
+    padding: 1rem 1.2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+    margin-bottom: 1rem;
+}
+.ai-callout h3 {
+    margin-top: 0;
+    margin-bottom: .35rem;
+}
+.ai-floating-note {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 9999;
+    max-width: 330px;
+    background: #ffffff;
+    border: 1px solid #d7e8ff;
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+    font-size: 0.92rem;
+}
+.ai-floating-note strong {
+    color: #0f4c81;
+}
+</style>
+""", unsafe_allow_html=True)
+
 with st.sidebar:
     st.header("Database")
     cfg = get_db_config()
@@ -330,15 +364,76 @@ with st.sidebar:
 params = make_params(region, warehouse, category, start_date, end_date)
 
 tabs = st.tabs([
+    "🤖 AI Copilot",
     "1. Category Winners",
     "2. Warehouse Battle",
     "3. Empty Shelf",
     "4. Hidden Failure",
     "5. Promotion Candidates",
-    "AI Placeholder",
 ])
 
+
 with tabs[0]:
+    st.subheader("🤖 AI Supply Chain Copilot")
+    st.markdown(
+        """
+        <div class="ai-callout">
+        <h3>Central AI Interaction Layer</h3>
+        <p>This section is prepared for AI integration. In the final version, users can ask plain-English business questions, and the AI can write SQL, run it against PostgreSQL, then return tables, charts, and recommendations.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    user_question = st.text_input(
+        "Ask the AI Copilot a business question",
+        placeholder="Example: Which products are low in inventory, and what should we reorder first?",
+    )
+
+    quick_questions = [
+        "Which product categories generate the most revenue?",
+        "Which warehouses are performing best or worst?",
+        "Which products are below reorder level?",
+        "Which warehouse-category combinations are underperforming?",
+        "Which products may need promotional action?",
+    ]
+    st.caption("Suggested questions for the AI layer")
+    st.write(" | ".join([f"`{q}`" for q in quick_questions]))
+
+    if user_question:
+        st.info(
+            "AI integration pending: teammate can connect an LLM/LangChain function here to generate SQL, execute it, and return a table, chart, and recommendation."
+        )
+
+    st.markdown("#### Current Pre-AI Dashboard Path")
+    st.write(
+        "Users may either start with the AI Copilot above, or manually browse the structured analytics tabs for the 5 agreed business statements."
+    )
+
+    st.code(
+        """Suggested integration hook:
+
+def get_ai_response(user_question, db_schema, current_filters):
+    # 1. Use LLM/LangChain to convert plain English into SQL
+    # 2. Run SQL safely against PostgreSQL
+    # 3. Return: generated_sql, result_dataframe, chart_config, recommendation_text
+    pass
+""",
+        language="python",
+    )
+
+# Floating visual cue for the demo. It is informational only; real chat behavior is in the AI Copilot tab.
+st.markdown(
+    """
+    <div class="ai-floating-note">
+        🤖 <strong>AI Copilot Ready</strong><br>
+        Ask natural-language questions in the first tab, or review the SQL dashboards manually.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+with tabs[1]:
     st.subheader("1. Big Winners: Category Revenue Leaders")
     df = run_query(CATEGORY_REVENUE_SQL, params)
     show_metrics(df, "total_revenue", "Category")
@@ -350,7 +445,7 @@ with tabs[0]:
         st.plotly_chart(fig2, use_container_width=True)
         simple_insight(df, "category_name", "total_revenue", "category")
 
-with tabs[1]:
+with tabs[2]:
     st.subheader("2. Location Battle: Warehouse Performance")
     df = run_query(WAREHOUSE_PERFORMANCE_SQL, params)
     show_metrics(df, "total_revenue", "Warehouse")
@@ -360,7 +455,7 @@ with tabs[1]:
         st.plotly_chart(fig, use_container_width=True)
         simple_insight(df, "warehouse_name", "total_revenue", "warehouse")
 
-with tabs[2]:
+with tabs[3]:
     st.subheader("3. Empty Shelf: Low Inventory / Restocking Alerts")
     df = run_query(LOW_INVENTORY_SQL, params)
     c1, c2, c3 = st.columns(3)
@@ -382,7 +477,7 @@ with tabs[2]:
         st.plotly_chart(fig, use_container_width=True)
         st.warning("Items listed here are at or near reorder level and should be reviewed by inventory planners.")
 
-with tabs[3]:
+with tabs[4]:
     st.subheader("4. Hidden Failure: Warehouse-Category Underperformance")
     df = run_query(WAREHOUSE_CATEGORY_SQL, params)
     show_metrics(df, "category_revenue", "Warehouse-Category")
@@ -397,7 +492,7 @@ with tabs[3]:
             f"in this view ({weakest['category_revenue']:,.2f})."
         )
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("5. Move It or Lose It: Promotional Action Candidates")
     st.caption("Rule-based pre-AI version. Final AI can improve this with inventory age, sales velocity, seasonality, and promotion history.")
     df = run_query(PROMOTION_SQL, params)
@@ -411,23 +506,3 @@ with tabs[4]:
             st.warning("Some products are flagged for promotional review based on current stock, sales, and product details.")
         else:
             st.success("No immediate promotion candidates found under the current rule-based logic.")
-
-with tabs[5]:
-    st.subheader("AI Assistant Placeholder")
-    st.write("This section is intentionally prepared for teammate AI integration.")
-    user_question = st.text_input("Ask a business question", placeholder="Example: Which products are low in inventory?")
-    if user_question:
-        st.info(
-            "AI integration pending: the final version may convert this question into SQL, run it against PostgreSQL, "
-            "and return a table, graph, and business recommendation."
-        )
-    st.code(
-        """Suggested integration hook:
-
-def get_ai_response(user_question, db_schema, current_filters):
-    # Teammate can add LLM / LangChain / API logic here
-    # Return SQL, result table, chart config, and recommendation text
-    pass
-""",
-        language="python",
-    )
